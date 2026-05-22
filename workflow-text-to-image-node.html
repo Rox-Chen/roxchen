@@ -1,0 +1,1679 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>百融百工 - 文生图节点</title>
+  <style>
+    :root {
+      --blue: #2468f2;
+      --blue-weak: #eef4ff;
+      --cyan: #14c9c9;
+      --green: #20b26c;
+      --orange: #ff8f1f;
+      --purple: #7a5cff;
+      --text: #1f2329;
+      --muted: #646a73;
+      --weak: #8f959e;
+      --border: #e5e6eb;
+      --bg: #f4f6fa;
+      --panel: #fff;
+      --canvas: #f7f8fb;
+      --shadow: 0 8px 24px rgba(31, 35, 41, .10);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: var(--bg);
+      font-size: 14px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 76px 1fr 392px;
+      grid-template-rows: 56px 1fr;
+      overflow: hidden;
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      z-index: 3;
+    }
+
+    .top-left,
+    .top-right,
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      color: var(--muted);
+    }
+
+    .flow-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .flow-title strong {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .flow-title span,
+    .save-tip {
+      font-size: 12px;
+      color: var(--weak);
+    }
+
+    .status-pill {
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--green);
+      background: #e8fff3;
+      border: 1px solid #b7ebd1;
+      font-size: 12px;
+    }
+
+    .btn {
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0 12px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: #9ec1ff;
+      color: var(--blue);
+    }
+
+    .btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      border: 0;
+      color: var(--muted);
+      background: transparent;
+      padding: 0 8px;
+    }
+
+    .left-rail {
+      grid-row: 2;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 8px;
+      gap: 10px;
+      z-index: 2;
+    }
+
+    .rail-item {
+      width: 56px;
+      height: 54px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: default;
+    }
+
+    .rail-item.active {
+      background: var(--blue-weak);
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .rail-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: currentColor;
+      opacity: .78;
+    }
+
+    .canvas-wrap {
+      grid-column: 2;
+      grid-row: 2;
+      position: relative;
+      background:
+        radial-gradient(circle at 1px 1px, #dfe3eb 1px, transparent 0) 0 0 / 18px 18px,
+        var(--canvas);
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      position: absolute;
+      top: 16px;
+      left: 18px;
+      right: 18px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .canvas-toolbar > * {
+      pointer-events: auto;
+    }
+
+    .palette {
+      display: flex;
+      gap: 8px;
+      background: rgba(255, 255, 255, .92);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px;
+      box-shadow: 0 4px 14px rgba(31, 35, 41, .06);
+    }
+
+    .zoom {
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .92);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--muted);
+      box-shadow: 0 4px 14px rgba(31, 35, 41, .06);
+    }
+
+    .flow-canvas {
+      position: absolute;
+      inset: 74px 24px 64px 24px;
+      min-width: 900px;
+    }
+
+    .node {
+      width: 238px;
+      min-height: 92px;
+      background: #fff;
+      border: 1px solid #d9dee8;
+      border-radius: 10px;
+      box-shadow: 0 8px 20px rgba(31, 35, 41, .08);
+      position: absolute;
+      padding: 14px;
+    }
+
+    .node.selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(36, 104, 242, .14), 0 10px 24px rgba(31, 35, 41, .10);
+    }
+
+    .node-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .node-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      flex: none;
+    }
+
+    .node-icon.start {
+      background: var(--green);
+    }
+
+    .node-icon.llm {
+      background: var(--purple);
+    }
+
+    .node-icon.image {
+      background: linear-gradient(135deg, #2468f2, #14c9c9);
+    }
+
+    .node-title {
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .node-title span {
+      color: var(--weak);
+      font-weight: 400;
+      font-size: 12px;
+    }
+
+    .node-desc {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .port {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid var(--blue);
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .port.left {
+      left: -6px;
+    }
+
+    .port.right {
+      right: -6px;
+    }
+
+    svg.edges {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .bottom-drawer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 48px;
+      background: rgba(255, 255, 255, .96);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 20px;
+      color: var(--muted);
+    }
+
+    .drawer-tab {
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 2px solid transparent;
+    }
+
+    .drawer-tab.active {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+      font-weight: 600;
+    }
+
+    .config-panel {
+      grid-column: 3;
+      grid-row: 2;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .panel-head {
+      min-height: 128px;
+      border-bottom: 1px solid var(--border);
+      padding: 18px 20px;
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 14px;
+      background: #fff;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .panel-title strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1.15;
+      margin-bottom: 7px;
+      letter-spacing: 0;
+    }
+
+    .panel-title span {
+      display: block;
+      color: var(--weak);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .panel-desc-input {
+      width: 100%;
+      min-height: 30px;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      color: #6b7280;
+      background: transparent;
+      font-size: 14px;
+      line-height: 1.45;
+      box-shadow: none;
+    }
+
+    .panel-desc-input:focus {
+      border-color: transparent;
+      box-shadow: none;
+    }
+
+    .panel-title .node-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      font-size: 20px;
+      margin-top: 1px;
+      background: linear-gradient(135deg, #ff4db8, #ff70d2);
+    }
+
+    .title-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .diamond {
+      width: 16px;
+      height: 16px;
+      transform: rotate(45deg);
+      border-radius: 4px;
+      background: #5b47ff;
+      display: inline-block;
+      flex: none;
+    }
+
+    .panel-title-text {
+      min-width: 0;
+      padding-top: 1px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: #2d3142;
+      font-size: 22px;
+      line-height: 1;
+      padding-top: 4px;
+      flex: none;
+    }
+
+    .icon-btn {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font-size: inherit;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .panel-body {
+      flex: 1;
+      min-height: 0;
+      padding: 0 18px 24px;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+    }
+
+    .panel-body::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .panel-body::-webkit-scrollbar-track {
+      background: #f2f3f5;
+      border-left: 1px solid #edf0f5;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb {
+      background: #c9cdd4;
+      border: 2px solid #f2f3f5;
+      border-radius: 999px;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb:hover {
+      background: #a9b0bd;
+    }
+
+    .section {
+      margin: 0 -18px;
+      border: 0;
+      border-bottom: 1px solid #dfe3ec;
+      border-radius: 0;
+      padding: 18px 20px 20px;
+      background: #fff;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      font-weight: 600;
+      font-size: 17px;
+      color: #303446;
+    }
+
+    .section-title small {
+      color: var(--weak);
+      font-weight: 400;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 14px;
+      min-width: 0;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field-row.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    label {
+      color: #303446;
+      font-size: 15px;
+    }
+
+    label.required::before {
+      content: "*";
+      color: #f53f3f;
+      margin-right: 3px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #dcdfe6;
+      border-radius: 6px;
+      min-height: 38px;
+      padding: 7px 12px;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      font-size: 15px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 88px;
+      line-height: 1.45;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(36, 104, 242, .12);
+    }
+
+    .hint {
+      color: var(--weak);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .collapse-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: -18px -20px;
+      padding: 22px 20px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #303446;
+    }
+
+    .title-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chevron {
+      font-size: 22px;
+      color: #697083;
+      line-height: 1;
+    }
+
+    .help-tip {
+      position: relative;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #9aa3b5;
+      border-radius: 50%;
+      color: #7f879a;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: help;
+    }
+
+    .help-tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 10px);
+      z-index: 12;
+      width: 250px;
+      transform: translateX(-50%);
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #1f2430;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.45;
+      box-shadow: 0 8px 18px rgba(31, 35, 41, .18);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+    }
+
+    .help-tip:hover::after {
+      opacity: 1;
+    }
+
+    .coze-select {
+      border-color: #c8cede;
+      background: #fbfcff;
+      border-radius: 8px;
+      min-height: 44px;
+    }
+
+    .model-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle-row,
+    .inline-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .toggle-row label,
+    .inline-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .dimension-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .dimension-input {
+      position: relative;
+    }
+
+    .dimension-input span {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #7f879a;
+      font-size: 16px;
+    }
+
+    .dimension-input input {
+      padding-left: 42px;
+    }
+
+    .number-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    .stepper {
+      height: 44px;
+      display: grid;
+      grid-template-columns: 38px 1fr 38px;
+      border: 1px solid #c8cede;
+      border-radius: 8px;
+      background: #fbfcff;
+      overflow: hidden;
+    }
+
+    .stepper button {
+      border: 0;
+      background: #fff;
+      color: #4e5969;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .stepper button:hover {
+      color: var(--blue);
+      background: #eef4ff;
+    }
+
+    .stepper input {
+      min-height: 42px;
+      border: 0;
+      border-left: 1px solid #edf0f5;
+      border-right: 1px solid #edf0f5;
+      border-radius: 0;
+      text-align: center;
+      background: #fbfcff;
+      pointer-events: none;
+    }
+
+    .ref-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ref-count {
+      color: #7f879a;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .ref-add-panel {
+      border: 1px solid #dfe3ec;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #fff;
+    }
+
+    .ref-source-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ref-source-btn {
+      border: 1px solid #dfe3ec;
+      border-radius: 8px;
+      height: 36px;
+      background: #fbfcff;
+      color: #4d5568;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .ref-source-btn:hover {
+      background: #eef4ff;
+      color: #1456f0;
+      border-color: #9bbcff;
+    }
+
+    .ref-variable-box {
+      display: grid;
+      gap: 8px;
+    }
+
+    .ref-variable-box label {
+      margin-bottom: 0;
+    }
+
+    .url-modal-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      background: rgba(15, 23, 42, .36);
+    }
+
+    .url-modal-mask.show {
+      display: flex;
+    }
+
+    .url-modal {
+      width: min(560px, calc(100vw - 56px));
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .26);
+      overflow: hidden;
+    }
+
+    .url-modal-head {
+      height: 56px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+    }
+
+    .url-modal-head strong {
+      font-size: 18px;
+    }
+
+    .url-modal-body {
+      padding: 16px 18px 18px;
+    }
+
+    .url-progress {
+      height: 8px;
+      border-radius: 999px;
+      background: #edf0f5;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .url-progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--blue);
+      transition: width .2s ease;
+    }
+
+    .url-modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      border-top: 1px solid var(--border);
+      padding: 12px 18px;
+    }
+
+    .ref-item {
+      height: 44px;
+      border: 1px solid #c8cede;
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: 34px 1fr 28px;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      background: #fff;
+      color: #303446;
+      overflow: visible;
+    }
+
+    .ref-item.variable {
+      grid-template-columns: 1fr 28px;
+    }
+
+    .ref-item .thumb {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid #c8cede;
+      cursor: zoom-in;
+      background:
+        linear-gradient(135deg, rgba(36, 104, 242, .16), rgba(20, 201, 201, .16)),
+        repeating-linear-gradient(45deg, #eef4ff 0 5px, #f7fbff 5px 10px);
+    }
+
+    .ref-item .thumb::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 10px);
+      z-index: 8;
+      width: 148px;
+      height: 108px;
+      transform: translateX(-50%) translateY(4px);
+      border: 1px solid #c8cede;
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 72% 30%, rgba(255, 150, 84, .75) 0 10px, transparent 11px),
+        linear-gradient(135deg, rgba(36, 104, 242, .82), rgba(117, 136, 255, .9)),
+        linear-gradient(165deg, transparent 55%, rgba(20, 201, 201, .6) 56% 100%);
+      box-shadow: 0 12px 24px rgba(31, 35, 41, .2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .16s ease, transform .16s ease;
+    }
+
+    .ref-item .thumb::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 3px);
+      z-index: 9;
+      width: 10px;
+      height: 10px;
+      transform: translateX(-50%) rotate(45deg);
+      background: #fff;
+      border-right: 1px solid #c8cede;
+      border-bottom: 1px solid #c8cede;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .16s ease;
+    }
+
+    .ref-item .thumb:hover::after,
+    .ref-item .thumb:hover::before {
+      opacity: 1;
+    }
+
+    .ref-item .thumb:hover::after {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .ref-item.variable .thumb {
+      display: none;
+    }
+
+    .ref-add-confirm {
+      width: auto;
+      justify-self: end;
+      min-height: 34px;
+      padding: 0 14px;
+    }
+
+    .ref-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 15px;
+    }
+
+    .ref-action {
+      color: #646a73;
+      text-align: center;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .output-choice {
+      display: grid;
+      grid-template-columns: 96px 68px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .output-choice label {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      color: #303446;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .field-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .char-count {
+      color: #7f879a;
+      font-size: 13px;
+    }
+
+    .mini-alert {
+      border: 1px solid #bdd7ff;
+      background: var(--blue-weak);
+      color: #2457c5;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .var-list {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .var-row {
+      display: grid;
+      grid-template-columns: 1fr 88px;
+      gap: 10px;
+      padding: 10px;
+      border-bottom: 1px solid #f0f1f5;
+      align-items: center;
+    }
+
+    .mapping-row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .mapping-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .var-row:last-child {
+      border-bottom: 0;
+    }
+
+    .var-name {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #272e3b;
+    }
+
+    .type-tag,
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      border-radius: 4px;
+      padding: 0 7px;
+      font-size: 12px;
+      color: #4e5969;
+      background: #f2f3f5;
+      border: 1px solid #e5e6eb;
+      white-space: nowrap;
+    }
+
+    .type-tag.image {
+      color: #0958d9;
+      background: var(--blue-weak);
+      border-color: #bdd7ff;
+    }
+
+    .upload-zone {
+      min-height: 112px;
+      border: 1px dashed #b8c0cc;
+      border-radius: 8px;
+      background: #fafcff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 14px;
+      cursor: pointer;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--blue);
+      background: #f5faff;
+    }
+
+    .upload-zone strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+
+    .ref-preview {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .ref-card {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(135deg, rgba(36, 104, 242, .18), rgba(20, 201, 201, .18)),
+        linear-gradient(45deg, #f6f8fc 25%, transparent 25% 50%, #f6f8fc 50% 75%, transparent 75%) 0 0 / 16px 16px;
+      display: flex;
+      align-items: flex-end;
+      padding: 8px;
+      color: #4e5969;
+      font-size: 12px;
+      overflow: hidden;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border: 1px solid #dcdfe6;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .segmented button {
+      min-height: 34px;
+      border: 0;
+      border-right: 1px solid #edf0f5;
+      background: #fff;
+      color: #4e5969;
+      cursor: pointer;
+    }
+
+    .segmented button:last-child {
+      border-right: 0;
+    }
+
+    .segmented button.active {
+      color: var(--blue);
+      background: var(--blue-weak);
+      font-weight: 600;
+    }
+
+    .toggle-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 36px;
+      border: 1px solid #edf0f5;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+
+    .toggle-line:last-child {
+      margin-bottom: 0;
+    }
+
+    .toggle-line span {
+      color: #4e5969;
+    }
+
+    .switch {
+      width: 38px;
+      height: 20px;
+      border: 0;
+      border-radius: 10px;
+      padding: 2px;
+      background: #c9cdd4;
+      display: inline-flex;
+      justify-content: flex-start;
+      cursor: pointer;
+      flex: none;
+    }
+
+    .switch::after {
+      content: "";
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+    }
+
+    .switch.on {
+      justify-content: flex-end;
+      background: var(--blue);
+    }
+
+    .output-preview {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfcff;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .preview-img {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 70% 25%, rgba(255, 143, 31, .55), transparent 28%),
+        radial-gradient(circle at 28% 70%, rgba(20, 201, 201, .45), transparent 30%),
+        linear-gradient(135deg, rgba(36, 104, 242, .72), rgba(122, 92, 255, .62));
+    }
+
+    .toast {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: rgba(31, 35, 41, .92);
+      color: #fff;
+      display: none;
+      z-index: 10;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1100px) {
+      .app {
+        grid-template-columns: 64px 1fr 340px;
+      }
+
+      .flow-canvas {
+        min-width: 760px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="top-left">
+        <button class="back">←</button>
+        <div class="flow-title">
+          <strong>test</strong>
+          <span>关联意图：-- · guanyu.chen 创建于昨天 14:29</span>
+        </div>
+        <span class="status-pill">已生效</span>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost">文件</button>
+        <button class="btn ghost">{@}实体</button>
+        <button class="btn ghost">{&}变量</button>
+      </div>
+      <div class="top-right">
+        <span class="save-tip" id="saveTip">草稿自动保存于2026-05-14 10:42:18</span>
+        <button class="btn">对话测试</button>
+        <button class="btn primary" id="publishBtn">发布</button>
+      </div>
+    </header>
+
+    <aside class="left-rail">
+      <div class="rail-item active"><span class="rail-icon"></span><span>流程</span></div>
+      <div class="rail-item"><span class="rail-icon"></span><span>意图</span></div>
+      <div class="rail-item"><span class="rail-icon"></span><span>资源</span></div>
+      <div class="rail-item"><span class="rail-icon"></span><span>测试</span></div>
+    </aside>
+
+    <main class="canvas-wrap">
+      <div class="canvas-toolbar">
+        <div class="palette">
+          <button class="btn" id="addImageNodeBtn">＋ 文生图</button>
+          <button class="btn">信息加工</button>
+          <button class="btn">分支</button>
+          <button class="btn">触发动作</button>
+        </div>
+        <div class="zoom">
+          <button class="btn ghost">－</button>
+          <strong>89%</strong>
+          <button class="btn ghost">＋</button>
+        </div>
+      </div>
+
+      <div class="flow-canvas">
+        <svg class="edges" viewBox="0 0 900 520" preserveAspectRatio="none">
+          <path d="M228 96 C280 96 292 176 344 176" stroke="#9aa8bd" stroke-width="2" fill="none"></path>
+          <path d="M582 176 C644 176 650 284 704 284" stroke="#2468f2" stroke-width="2.4" fill="none"></path>
+          <path d="M464 268 C464 310 430 334 430 374" stroke="#9aa8bd" stroke-width="2" fill="none"></path>
+        </svg>
+
+        <section class="node" style="left:44px; top:52px;">
+          <span class="port right"></span>
+          <div class="node-head">
+            <span class="node-icon start">S</span>
+            <div class="node-title">Start<span>流程开始</span></div>
+          </div>
+          <div class="node-desc">接收用户输入、参考图和会话变量。</div>
+        </section>
+
+        <section class="node" style="left:344px; top:130px;">
+          <span class="port left"></span>
+          <span class="port right"></span>
+          <div class="node-head">
+            <span class="node-icon llm">L</span>
+            <div class="node-title">节点5<span>大模型变量赋值</span></div>
+          </div>
+          <div class="node-desc">整理用户需求，输出图像生成提示词草稿。</div>
+        </section>
+
+        <section class="node selected" style="left:704px; top:238px;">
+          <span class="port left"></span>
+          <span class="port right"></span>
+          <div class="node-head">
+            <span class="node-icon image">图</span>
+            <div class="node-title">节点8<span>文生图</span></div>
+          </div>
+          <div class="node-desc">根据提示词和参考图生成图像，输出图片 URL 列表。</div>
+        </section>
+
+        <section class="node" style="left:310px; top:364px;">
+          <span class="port left"></span>
+          <span class="port right"></span>
+          <div class="node-head">
+            <span class="node-icon llm" style="background:#ff8f1f;">O</span>
+            <div class="node-title">节点7<span>输出</span></div>
+          </div>
+          <div class="node-desc">{{image_urls}} 返回给用户或下游节点。</div>
+        </section>
+      </div>
+
+      <div class="bottom-drawer">
+        <span class="drawer-tab active">输出</span>
+        <span class="drawer-tab">输入</span>
+        <span class="drawer-tab">运行日志</span>
+        <span class="drawer-tab">资源</span>
+      </div>
+    </main>
+
+    <aside class="config-panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="node-icon image">图</span>
+          <div class="panel-title-text">
+            <div class="title-line">
+              <strong>文生图变量赋值</strong>
+              <span class="diamond"></span>
+            </div>
+            <input class="panel-desc-input" id="nodeDescription" placeholder="请输入描述">
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="deleteNodeBtn" title="删除节点">×</button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <section class="section">
+          <div class="section-title"><span class="title-left"><span class="chevron">⌄</span>模型设置</span></div>
+          <div class="field">
+            <label for="imageModel">模型</label>
+            <select id="imageModel" class="coze-select">
+              <option>gpt-image-2</option>
+              <option>gemini-2.5-flash-image</option>
+              <option>doubao-seedream-4-0</option>
+            </select>
+          </div>
+
+          <div class="inline-row">
+            <label>比例</label>
+          </div>
+          <div class="field">
+            <select id="ratio" class="coze-select">
+              <option>1:1 (2048*2048)</option>
+              <option>3:4 (1536*2048)</option>
+              <option>4:3 (2048*1536)</option>
+              <option>9:16 (1152*2048)</option>
+              <option>16:9 (2048*1152)</option>
+            </select>
+          </div>
+          <div class="number-row">
+            <label>生成图片数量</label>
+            <div class="stepper" aria-label="生成图片数量">
+              <button id="decreaseCount" type="button" aria-label="减少">−</button>
+              <input id="count" type="text" value="1" readonly>
+              <button id="increaseCount" type="button" aria-label="增加">＋</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <span class="title-left">
+              <span class="chevron">⌄</span>参考图
+              <span class="help-tip" data-tip="模型会按照参考图列表顺序读取图片，请确认图片排列顺序符合预期。">?</span>
+              <span class="ref-count" id="refCount">3/10</span>
+            </span>
+            <button class="btn ghost" id="addRefBtn" type="button">＋</button>
+          </div>
+          <div class="ref-add-panel hidden" id="refAddPanel">
+            <div class="ref-source-actions">
+              <button class="ref-source-btn" id="chooseLocalRef" type="button">本地上传</button>
+              <button class="ref-source-btn" id="chooseVariableRef" type="button">选择变量</button>
+              <button class="ref-source-btn" id="chooseUrlRef" type="button">添加 URL</button>
+            </div>
+            <div class="ref-variable-box hidden" id="refVariableBox">
+              <label for="refVariable">参考图变量</label>
+              <select id="refVariable" class="coze-select">
+                <option>{{reference_images}}</option>
+                <option>{{last_upload_images}}</option>
+                <option>{{user_input_image}}</option>
+                <option>开始 - CONVERSATION_NAME</option>
+              </select>
+              <button class="btn primary ref-add-confirm" id="confirmRefVariable" type="button">添加</button>
+            </div>
+            <input id="refUpload" type="file" accept="image/*" multiple hidden>
+          </div>
+          <div class="ref-list">
+            <div class="ref-item">
+              <span class="thumb"></span>
+              <span class="ref-name">ChatGPT Image 2026年5月13日 17...</span>
+              <span class="ref-action">×</span>
+            </div>
+            <div class="ref-item">
+              <span class="thumb"></span>
+              <span class="ref-name">开始 - CONVERSATION_NAME</span>
+              <span class="ref-action">×</span>
+            </div>
+            <div class="ref-item variable">
+              <span class="ref-name">{{reference_images}}</span>
+              <span class="ref-action">×</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title"><span class="title-left"><span class="chevron">⌄</span>提示词</span></div>
+          <div class="field">
+            <div class="field-label-row">
+              <label for="promptText">用户提示词</label>
+              <span class="char-count" id="promptCount">0/2000个字符</span>
+            </div>
+            <textarea id="promptText" maxlength="2000" placeholder="输入提示词，可使用 & 引用变量，例如 &prompt_draft、&reference_images"></textarea>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title"><span class="title-left"><span class="chevron">⌄</span>输出</span></div>
+          <div class="output-choice">
+            <select id="outputFormat" class="coze-select" aria-label="输出格式">
+              <option selected>URL</option>
+              <option>图片</option>
+            </select>
+            <label for="outputVariable">赋值到</label>
+            <select id="outputVariable" class="coze-select">
+              <option>image_urls - 图片 URL 列表</option>
+              <option>generated_images - 图片数组</option>
+              <option>cover_image - 单图 URL</option>
+              <option>reference_images - 参考图列表</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title"><span class="title-left"><span class="chevron">⌄</span>异常处理</span></div>
+          <div class="field-row three">
+            <div class="field">
+              <label for="timeout">超时时间</label>
+              <input id="timeout" value="600 s">
+            </div>
+            <div class="field">
+              <label for="retry">重试次数</label>
+              <select id="retry" class="coze-select">
+                <option>不重试</option>
+                <option>1 次</option>
+                <option>2 次</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="exceptionAction">异常处置</label>
+              <select id="exceptionAction" class="coze-select">
+                <option>终止流程</option>
+                <option>继续执行</option>
+                <option>返回错误信息</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </aside>
+  </div>
+
+  <div class="url-modal-mask" id="urlModal" aria-hidden="true">
+    <div class="url-modal" role="dialog" aria-modal="true" aria-labelledby="urlModalTitle">
+      <div class="url-modal-head">
+        <strong id="urlModalTitle">添加 URL</strong>
+        <button class="icon-btn" id="closeUrlModalBtn" title="关闭">×</button>
+      </div>
+      <div class="url-modal-body">
+        <div class="field">
+          <label for="urlInput">图像 URL 地址</label>
+          <textarea id="urlInput" placeholder="请输入图像 URL，多条地址用 | 隔开"></textarea>
+        </div>
+        <div class="url-progress hidden" id="urlProgress">
+          <div class="url-progress-bar" id="urlProgressBar"></div>
+        </div>
+      </div>
+      <div class="url-modal-foot">
+        <button class="btn" id="cancelUrlBtn" type="button">取消</button>
+        <button class="btn primary" id="confirmUrlBtn" type="button">解析添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function toast(message) {
+      const el = $("#toast");
+      el.textContent = message;
+      el.classList.add("show");
+      window.clearTimeout(toast.timer);
+      toast.timer = window.setTimeout(() => el.classList.remove("show"), 1600);
+    }
+
+    function clampImageCount() {
+      const count = Math.max(1, Math.min(4, Number($("#count").value || 1)));
+      $("#count").value = count;
+    }
+
+    function stepImageCount(delta) {
+      const next = Math.max(1, Math.min(4, Number($("#count").value || 1) + delta));
+      $("#count").value = next;
+    }
+
+    $("#decreaseCount").addEventListener("click", () => stepImageCount(-1));
+    $("#increaseCount").addEventListener("click", () => stepImageCount(1));
+
+    function updatePromptCount() {
+      $("#promptCount").textContent = `${$("#promptText").value.length}/2000个字符`;
+    }
+
+    $("#promptText").addEventListener("input", updatePromptCount);
+    updatePromptCount();
+
+    function updateRefCount() {
+      const total = document.querySelectorAll(".ref-list .ref-item").length;
+      $("#refCount").textContent = `${total}/10`;
+    }
+
+    function openUrlModal() {
+      $("#urlModal").classList.add("show");
+      $("#urlModal").setAttribute("aria-hidden", "false");
+      $("#urlProgress").classList.add("hidden");
+      $("#urlProgressBar").style.width = "0%";
+    }
+
+    function closeUrlModal() {
+      $("#urlModal").classList.remove("show");
+      $("#urlModal").setAttribute("aria-hidden", "true");
+      $("#urlProgress").classList.add("hidden");
+      $("#urlProgressBar").style.width = "0%";
+    }
+
+    function addRefItem(name) {
+      const item = document.createElement("div");
+      const isVariable = name.includes("{{") || name.includes("CONVERSATION_");
+      item.className = isVariable ? "ref-item variable" : "ref-item";
+      item.innerHTML = isVariable
+        ? `<span class="ref-name">${name}</span><span class="ref-action">×</span>`
+        : `<span class="thumb"></span><span class="ref-name">${name}</span><span class="ref-action">×</span>`;
+      document.querySelector(".ref-list").appendChild(item);
+      updateRefCount();
+    }
+
+    $("#refVariable").addEventListener("change", () => {
+      toast(`已选择变量 ${$("#refVariable").value}`);
+    });
+
+    $("#addRefBtn").addEventListener("click", () => {
+      $("#refAddPanel").classList.toggle("hidden");
+      $("#refVariableBox").classList.add("hidden");
+      toast($("#refAddPanel").classList.contains("hidden") ? "已收起参考图添加" : "请选择参考图来源");
+    });
+
+    $("#chooseLocalRef").addEventListener("click", () => {
+      $("#refUpload").click();
+    });
+
+    $("#chooseVariableRef").addEventListener("click", () => {
+      $("#refVariableBox").classList.remove("hidden");
+      toast("请选择一个图片变量");
+    });
+
+    $("#chooseUrlRef").addEventListener("click", openUrlModal);
+
+    $("#confirmRefVariable").addEventListener("click", () => {
+      addRefItem($("#refVariable").value);
+      $("#refAddPanel").classList.add("hidden");
+      $("#refVariableBox").classList.add("hidden");
+      toast("已添加变量参考图");
+    });
+
+    $("#refUpload").addEventListener("change", () => {
+      const files = Array.from($("#refUpload").files).slice(0, 4);
+      if (!files.length) return;
+      files.reverse().forEach((file) => {
+        addRefItem(file.name);
+      });
+      $("#refAddPanel").classList.add("hidden");
+      toast(`已选择 ${files.length} 张参考图`);
+    });
+
+    $("#confirmUrlBtn").addEventListener("click", () => {
+      const urls = $("#urlInput").value.split("|").map((url) => url.trim()).filter(Boolean);
+      if (!urls.length) {
+        toast("请输入 URL 地址");
+        return;
+      }
+      $("#urlProgress").classList.remove("hidden");
+      $("#urlProgressBar").style.width = "35%";
+      window.setTimeout(() => {
+        $("#urlProgressBar").style.width = "72%";
+      }, 260);
+      window.setTimeout(() => {
+        urls.slice(0, 10).forEach((url) => addRefItem(url));
+        $("#urlProgressBar").style.width = "100%";
+        $("#refAddPanel").classList.add("hidden");
+        toast(`已添加 ${urls.length} 条 URL`);
+        window.setTimeout(closeUrlModal, 260);
+      }, 620);
+    });
+
+    $("#closeUrlModalBtn").addEventListener("click", closeUrlModal);
+    $("#cancelUrlBtn").addEventListener("click", closeUrlModal);
+    $("#urlModal").addEventListener("click", (event) => {
+      if (event.target === $("#urlModal")) closeUrlModal();
+    });
+
+    document.querySelector(".ref-list").addEventListener("click", (event) => {
+      const action = event.target.closest(".ref-action");
+      if (!action) return;
+      const row = action.closest(".ref-item");
+      if (action.textContent.trim() === "×") {
+        row.remove();
+        updateRefCount();
+        toast("已移除参考图");
+      }
+    });
+
+    $("#publishBtn").addEventListener("click", () => toast("发布为 Mock 操作"));
+    $("#addImageNodeBtn").addEventListener("click", () => toast("画布中已存在文生图节点"));
+    $("#deleteNodeBtn").addEventListener("click", () => {
+      toast("已触发删除节点 Mock 操作");
+    });
+    $$(".collapse-title").forEach((title) => {
+      title.addEventListener("click", () => {
+        const text = title.textContent.replace(/\s+/g, " ").trim();
+        toast(`${text} 模块可展开配置`);
+      });
+    });
+    $$(".switch").forEach((button) => {
+      button.addEventListener("click", () => button.classList.toggle("on"));
+    });
+  </script>
+</body>
+</html>
